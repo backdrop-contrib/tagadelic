@@ -1,11 +1,7 @@
 name = Tagadelic
 description = Tagadelic makes weighted tag clouds from your taxonomy terms.
-core = 7.x
-dependencies[] = taxonomy
 package = "Taxonomy"
-configure = admin/config/content/tagadelic
-
-files[] = tagadelic.module
-files[] = tagadelic.install
-
+type = module
+backdrop = 1.x
+dependencies[] = taxonomy
 configure = admin/config/content/tagadelic

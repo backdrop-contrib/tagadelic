@@ -13,7 +13,7 @@ function tagadelic_help($path, $arg) {
  * Implements hook_init().
  */
 function tagadelic_init() {
-  drupal_add_css(drupal_get_path('module', 'tagadelic') . '/tagadelic.css');
+  backdrop_add_css(backdrop_get_path('module', 'tagadelic') . '/tagadelic.css');
 }
 
 /**
@@ -25,7 +25,7 @@ function tagadelic_menu() {
   $items['admin/config/content/tagadelic'] = array(
     'title' => 'Tagadelic configuration',
     'description' => 'Configure the tag clouds. Set the order, the number of tags, and the depth of the clouds.',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('tagadelic_settings'),
     'access callback' => 'user_access',
     'access arguments' => array('administer taxonomy'),
@@ -125,7 +125,7 @@ function tagadelic_page_chunk($vocs) {
   $output = theme('tagadelic_weighted', array('terms' => $tags));
 
   if (!$output) {
-    return drupal_not_found();
+    return backdrop_not_found();
   }
 
   $output = "<div class=\"wrapper tagadelic\">$output</div>";
@@ -139,7 +139,7 @@ function tagadelic_page_chunk($vocs) {
 function tagadelic_page_list($vocs) {
 
   if ($vocs == NULL) {
-    return drupal_not_found();
+    return backdrop_not_found();
   }
 
   $output = '';
@@ -158,7 +158,7 @@ function tagadelic_page_list($vocs) {
   }
 
   if (!$output) {
-    return drupal_not_found();
+    return backdrop_not_found();
   }
 
   $output = "<div class=\"wrapper tagadelic\">$output</div>";

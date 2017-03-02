@@ -441,3 +441,14 @@ function tagadelic_settings_submit($form, &$form_state) {
   $config->save();
   backdrop_set_message(t('The Tagadelic configuration options have been saved.'));
 }
+
+/**
+ * Implements hook_config_info().
+ */
+function tagadelic_config_info() {
+  $prefixes['tagadelic.settings'] = array(
+    'label' => t('Tagadelic settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
+}

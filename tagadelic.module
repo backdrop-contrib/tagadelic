@@ -61,29 +61,39 @@ function tagadelic_menu() {
  * Menu callback. Admin setting page for tagadelic.
  */
 function tagadelic_settings() {
+  $config = config('tagadelic.settings');
+
   $options = array('weight,asc' => t('by weight, ascending'), 'weight,desc' => t('by weight, descending'), 'title,asc' => t('by title, ascending'), 'title,desc' => t('by title, descending'), 'random,none' => t('random'));
   $form['tagadelic_sort_order'] = array(
     '#type' => 'radios',
     '#title' => t('Tagadelic sort order'),
     '#options' => $options,
-    '#default_value' => variable_get('tagadelic_sort_order', 'title,asc'),
+    '#default_value' => $config->get('sort_order'),
     '#description' => t('Determines the sort order of the tags on the freetagging page.'),
   );
   $form['tagadelic_page_amount'] = array(
     '#type' => 'textfield',
     '#size' => 5,
     '#title' => t('Amount of tags on the pages'),
-    '#default_value' => variable_get('tagadelic_page_amount', '60'),
+    '#default_value' => $config->get('page_amount'),
     '#description' => t('The amount of tags that will show up in a cloud on the pages. Amount of tags in blocks must be configured in the block settings of the various cloud blocks.'),
   );
   $form['tagadelic_levels'] = array(
     '#type' => 'textfield',
     '#size' => 5,
     '#title' => t('Number of levels'),
-    '#default_value' => variable_get('tagadelic_levels', 6),
+    '#default_value' => $config->get('levels'),
     '#description' => t('The number of levels between the least popular tags and the most popular ones. Different levels will be assigned a different class to be themed in tagadelic.css'),
   );
-  return system_settings_form($form);
+
+  // Add a submit button.
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
+  );
+
+  return $form;
 }
 
 /**
@@ -110,7 +120,7 @@ function tagadelic_page_chunk($vocs) {
     }
   }
 
-  $tags = tagadelic_get_weighted_tags($vocs, variable_get('tagadelic_levels', 6), variable_get('tagadelic_page_amount', '60'));
+  $tags = tagadelic_get_weighted_tags($vocs, config_get('tagadelic.settings', 'levels'), config_get('tagadelic_settings', 'page_amount'));
   $tags = tagadelic_sort_tags($tags);
   $output = theme('tagadelic_weighted', array('terms' => $tags));
 
@@ -141,7 +151,7 @@ function tagadelic_page_list($vocs) {
     $vocabulary->description = filter_xss_admin($vocabulary->description);
     $vocabulary->name = filter_xss_admin($vocabulary->name);
 
-    $tags = tagadelic_get_weighted_tags(array($vocabulary->vid), variable_get('tagadelic_levels', 6), variable_get('tagadelic_page_amount', '60'));
+    $tags = tagadelic_get_weighted_tags(array($vocabulary->vid), config_get('tagadelic.settings', 'levels'),  config_get('tagadelic.settings', 'page_amount'));
     $tags = tagadelic_sort_tags($tags);
 
     $output .= theme('tagadelic_list_box', array('vocabulary' => $vocabulary, 'tags' => $tags));
@@ -276,7 +286,7 @@ function tagadelic_build_weighted_tags($tags, $steps = 6) {
  * @todo If you feel like making this more modular, please send me patches.
  */
 function tagadelic_sort_tags($tags) {
-  list($sort, $order) = explode(',', variable_get('tagadelic_sort_order', 'title,asc'));
+  list($sort, $order) = explode(',', config_get('tagadelic.settings', 'sort_order'));
   switch ($sort) {
     case 'title':
       usort($tags, "_tagadelic_sort_by_title");
@@ -331,7 +341,7 @@ function theme_tagadelic_weighted(array $vars) {
       )
     ) . " \n";
   }
-  if (count($terms) >= variable_get('tagadelic_block_tags_' . $vars['voc']->vid, 12)) {
+  if (count($terms) >= config_get('tagadelic.settings', 'block_tags_' . $vars['voc']->vid)) {
     $output .= theme('more_link', array('title' => t('more tags'), 'url' => "tagadelic/chunk/{$vars['voc']->vid}"));
   }
   return $output;
@@ -367,7 +377,7 @@ function tagadelic_block_info() {
   $blocks = array();
   foreach (taxonomy_get_vocabularies() as $voc) {
     $blocks[$voc->vid] = array();
-    $blocks[$voc->vid]['info'] = variable_get('tagadelic_block_title_' . $voc->vid, t('Tags in @voc', array('@voc' => $voc->name)));
+    $blocks[$voc->vid]['info'] = config_get('tagadelic.settings', 'block_title_' . $vod->vid);
     $blocks[$voc->vid]['cache'] = DRUPAL_CACHE_GLOBAL;
   }
   return $blocks;
@@ -379,8 +389,8 @@ function tagadelic_block_info() {
 function tagadelic_block_view($delta = '') {
   $block = array();
   if ($voc = taxonomy_vocabulary_load($delta)) {
-    $blocks['subject'] = variable_get('tagadelic_block_title_' . $delta, t('Tags in @voc', array('@voc' => $voc->name)));
-    $tags = tagadelic_get_weighted_tags(array($delta), variable_get('tagadelic_levels', 6), variable_get('tagadelic_block_tags_' . $delta, 12));
+    $blocks['subject'] = config_get('tagadelic.settings', 'block_title_' . $delta);
+    $tags = tagadelic_get_weighted_tags(array($delta), config_get('tagadelic.settings', 'levels'), config_get('tagadelic.settings', 'block_tags_' . $delta));
     $tags = tagadelic_sort_tags($tags);
     $blocks['content'] = theme('tagadelic_weighted', array('terms' => $tags, 'voc' => $voc)); //return a chunk of 12 tags
   }
@@ -396,7 +406,7 @@ function tagadelic_block_configure($delta = '') {
   $form['tags'] = array(
     '#type' => 'textfield',
     '#title' => t('Tags to show'),
-    '#default_value' => variable_get('tagadelic_block_tags_' . $delta, 12),
+    '#default_value' => config_get('tagadelic.settings', 'block_tags_' . $delta),
     '#maxlength' => 3,
     '#description' => t('The number of tags to show in this block.'),
   );
@@ -407,7 +417,7 @@ function tagadelic_block_configure($delta = '') {
  * Implements hook_block_save().
  */
 function tagadelic_block_save($delta = '', $edit = array()) {
-  variable_set('tagadelic_block_tags_' . $delta, $edit['tags']);
+  config_set('tagadelic.settings', 'block_tags_' . $delta, $edit['tags']);
 }
 
 /**
@@ -418,4 +428,16 @@ function tagadelic_theme() {
     'tagadelic_list_box' => array('arguments' => array('vocabulary' => NULL, 'tags' => NULL)),
     'tagadelic_weighted' => array('arguments' => array('terms' => array()))
   );
+}
+
+/**
+ * Submit handler for module_settings_form().
+ */
+function tagadelic_settings_submit($form, &$form_state) {
+  $config = config('tagadelic.settings');
+  $config->set('sort_order', $form_state['values']['tagadelic_sort_order']);
+  $config->set('page_amount', $form_state['values']['tagadelic_page_amount']);
+  $config->set('levels', $form_state['values']['tagadelic_levels']);
+  $config->save();
+  backdrop_set_message(t('The Tagadelic configuration options have been saved.'));
 }

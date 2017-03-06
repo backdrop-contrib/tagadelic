@@ -5,15 +5,34 @@
  */
 
 /**
- * Clear cache.
+ * @defgroup updates-7.x-to-1.x Updates from 7.x to 1.x
+ * @{
+ * Update functions from Drupal 7.x to Backdrop CMS 1.x.
  */
-function tagadelic_update_6100() {
-  $ret = array();
 
-  // We want to remove cache entries that were added as CACHE_PERMANENT. The
-  // cid's depend on the taxonomies involved but we can just remove anything
-  // with a cid prefixed tagadelic_cache_
-  $ret[] = update_sql("DELETE FROM {cache} WHERE cid LIKE 'tagadelic_cache_%'");
+/**
+ * Move settings from variables to config.
+ */
+function tagadelic_update_1000() {
+  // Migrate variables to config.
+  $config = config('tagadelic.settings');
+  $config->set('sort_order', update_variable_get('tagadelic_sort_order', 'title,asc'));
+  $config->set('page_amount', update_variable_get('tagadelic_page_amount', 60));
+  $config->set('levels', update_variable_get('tagadelic_levels', 6));
 
-  return $ret;
+  // @todo Write something dynamic for the variables with block IDs.
+
+  $config->save();
+
+  // Delete variables.
+  update_variable_del('tagadelic_sort_order');
+  update_variable_del('tagadelic_page_amount');
+  update_variable_del('tagadelic_levels');
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function tagadelic_update_last_removed() {
+  return 6100;
 }

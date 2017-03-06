@@ -116,7 +116,7 @@ function tagadelic_page_chunk($vocs) {
 
   if ($vocs == NULL) {
     foreach (taxonomy_get_vocabularies(NULL) as $vocabulary) {
-      $vocs[] = $vocabulary->vid;
+      $vocs[] = $vocabulary->machine_name;
     }
   }
 
@@ -143,15 +143,15 @@ function tagadelic_page_list($vocs) {
   }
 
   $output = '';
-  foreach ($vocs as $vid) {
-    $vocabulary = taxonomy_vocabulary_load($vid);
+  foreach ($vocs as $machine_name) {
+    $vocabulary = taxonomy_vocabulary_load($machine_name);
 
     // Clean out vocabulary, so that we don't have to leave security to our
     // theme layer.
     $vocabulary->description = filter_xss_admin($vocabulary->description);
     $vocabulary->name = filter_xss_admin($vocabulary->name);
 
-    $tags = tagadelic_get_weighted_tags(array($vocabulary->vid), config_get('tagadelic.settings', 'levels'),  config_get('tagadelic.settings', 'page_amount'));
+    $tags = tagadelic_get_weighted_tags(array($vocabulary->machine_name), config_get('tagadelic.settings', 'levels'),  config_get('tagadelic.settings', 'page_amount'));
     $tags = tagadelic_sort_tags($tags);
 
     $output .= theme('tagadelic_list_box', array('vocabulary' => $vocabulary, 'tags' => $tags));
@@ -182,8 +182,8 @@ function tagadelic_node_get_terms($node) {
     }
     $tags = array();
     foreach ($terms as $tid => $term) {
-      if ($vocs[$node->type][$term->vid]->tags) {
-        $tags[$term->vid][$tid] = $term;
+      if ($vocs[$node->type][$term->machine_name]->tags) {
+        $tags[$term->machine_name][$tid] = $term;
       }
     }
     return $tags;
@@ -196,7 +196,7 @@ function tagadelic_node_get_terms($node) {
  * unordered at this stage, hence they need ordering either by calling our api
  * or by your own ordering data.
  *
- * @param $vids
+ * @param $machine_names
  *   Vocabulary ids representing the vocabularies where you want the tags from.
  * @param $steps
  *   The amount of tag-sizes you will be using. If you give "12" you still get
@@ -207,10 +207,10 @@ function tagadelic_node_get_terms($node) {
  *   An <em>unordered</em> array with tags-objects, containing the attribute
  *   $tag->weight.
  */
-function tagadelic_get_weighted_tags($vids, $steps = 6, $size = 60) {
+function tagadelic_get_weighted_tags($machine_names, $steps = 6, $size = 60) {
   // Build the options so we can cache multiple versions.
   global $language;
-  $options = implode('_', $vids) . '_' . $language->language . '_' . $steps . '_' . $size;
+  $options = implode('_', $machine_names) . '_' . $language->langcode . '_' . $steps . '_' . $size;
   // Check if the cache exists.
   $cache_name = 'tagadelic_cache_' . $options;
   $cache = cache_get($cache_name, 'cache_page');
@@ -221,12 +221,15 @@ function tagadelic_get_weighted_tags($vids, $steps = 6, $size = 60) {
     $tags = $cache->data;
   }
   else {
-
-    if (!is_array($vids) || count($vids) == 0) {
+    if (!is_array($machine_names) || count($machine_names) == 0) {
       return array();
     }
 
-    $result = db_query_range('SELECT COUNT(*) AS count, td.tid, td.vid, td.name, td.description FROM {taxonomy_term_data} td INNER JOIN {taxonomy_index} tn ON td.tid = tn.tid INNER JOIN {node} n ON tn.nid = n.nid WHERE td.vid IN (' . implode(',', array_fill(0, count($vids), '?')) . ') GROUP BY td.tid, td.vid, td.name, td.description HAVING COUNT(*) > 0 ORDER BY count DESC', 0, $size, $vids);
+    // Get data for terms to put in the tag cloud.
+    $placeholders = array_fill(0, count($machine_names), '?');
+    $in_phrase = implode(',', $placeholders);
+    $query_string = 'SELECT COUNT(*) AS count, td.tid, td.vocabulary, td.name, td.description FROM {taxonomy_term_data} td INNER JOIN {taxonomy_index} tn ON td.tid = tn.tid INNER JOIN {node} n ON tn.nid = n.nid WHERE td.vocabulary IN (' . $in_phrase . ') GROUP BY td.tid, td.vocabulary, td.name, td.description HAVING COUNT(*) > 0 ORDER BY count DESC';
+    $result = db_query_range($query_string, 0, $size, $machine_names);
 
     foreach ($result as $tag) {
       $tags[$tag->tid] = $tag;
@@ -248,7 +251,7 @@ function tagadelic_get_weighted_tags($vids, $steps = 6, $size = 60) {
  *
  * @param $tags
  *   A list of <em>objects</em> with the following attributes: $tag->count,
- *   $tag->tid, $tag->name and $tag->vid. Each Tag will be calculated and
+ *   $tag->tid, $tag->name and $tag->machine_name. Each Tag will be calculated and
  *   turned into a tag. Refer to tagadelic_get_weighted_tags() for an example.
  * @param $steps
  *   The amount of tag-sizes you will be using. If you give "12" you still get
@@ -341,8 +344,8 @@ function theme_tagadelic_weighted(array $vars) {
       )
     ) . " \n";
   }
-  if (count($terms) >= config_get('tagadelic.settings', 'block_tags_' . $vars['voc']->vid)) {
-    $output .= theme('more_link', array('title' => t('more tags'), 'url' => "tagadelic/chunk/{$vars['voc']->vid}"));
+  if (count($terms) >= config_get('tagadelic.settings', 'block_tags_' . $vars['voc']->machine_name)) {
+    $output .= theme('more_link', array('title' => t('more tags'), 'url' => "tagadelic/chunk/{$vars['voc']->machine_name}"));
   }
   return $output;
 }
@@ -375,11 +378,18 @@ function theme_tagadelic_list_box(array $vars) {
  */
 function tagadelic_block_info() {
   $blocks = array();
+
   foreach (taxonomy_get_vocabularies() as $voc) {
-    $blocks[$voc->vid] = array();
-    $blocks[$voc->vid]['info'] = config_get('tagadelic.settings', 'block_title_' . $vod->vid);
-    $blocks[$voc->vid]['cache'] = DRUPAL_CACHE_GLOBAL;
+    $blocks[$voc->machine_name] = array();
+    $custom_info = config_get('tagadelic.settings', 'block_title_' . $voc->machine_name);
+    $info = (!empty($custom_info) ? $custom_info : t('Tags in @voc', array('@voc' => $voc->name)));
+    $blocks[$voc->machine_name]['info'] = $info;
+    $blocks[$voc->machine_name]['cache'] = DRUPAL_CACHE_GLOBAL;
   }
+
+  $blocks['example_simple_tagadelic']['info'] = 'example simple tagadelic';
+  $blocks['example_simple_tagadelic']['cache'] = DRUPAL_CACHE_GLOBAL;
+
   return $blocks;
 }
 
@@ -389,12 +399,27 @@ function tagadelic_block_info() {
 function tagadelic_block_view($delta = '') {
   $block = array();
   if ($voc = taxonomy_vocabulary_load($delta)) {
-    $blocks['subject'] = config_get('tagadelic.settings', 'block_title_' . $delta);
-    $tags = tagadelic_get_weighted_tags(array($delta), config_get('tagadelic.settings', 'levels'), config_get('tagadelic.settings', 'block_tags_' . $delta));
+    $config = config('tagadelic.settings');
+
+    $custom_subject = $config->get('block_title_' . $delta);
+    $subject = (!empty($custom_subject) ? $custom_subject : t('Tags in @voc', array('@voc' => $voc->name)));
+    $block['subject'] = $subject;
+
+    $custom_levels = $config->get('levels');
+    $levels = (!empty($custom_levels)) ? $custom_levels : 6;
+    $custom_block_tags = $config->get('block_tags_' . $delta);
+    $block_tags = (!empty($custom_block_tags) ? $custom_block_tags : 12);
+    $tags = tagadelic_get_weighted_tags(array($delta), $levels, $block_tags);
     $tags = tagadelic_sort_tags($tags);
-    $blocks['content'] = theme('tagadelic_weighted', array('terms' => $tags, 'voc' => $voc)); //return a chunk of 12 tags
+    $block['content'] = theme('tagadelic_weighted', array('terms' => $tags, 'voc' => $voc)); //return a chunk of 12 tags
   }
-  return $blocks;
+
+  if ($delta == 'example_simple_tagadelic') {
+    $block['subject'] = "Title of example simple tagadelic block";
+    $block['content'] = "words about the example simple tagadelic block";
+  }
+
+  return $block;
 }
 
 /**

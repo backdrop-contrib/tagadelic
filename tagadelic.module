@@ -387,9 +387,6 @@ function tagadelic_block_info() {
     $blocks[$voc->machine_name]['cache'] = DRUPAL_CACHE_GLOBAL;
   }
 
-  $blocks['example_simple_tagadelic']['info'] = 'example simple tagadelic';
-  $blocks['example_simple_tagadelic']['cache'] = DRUPAL_CACHE_GLOBAL;
-
   return $blocks;
 }
 
@@ -412,11 +409,6 @@ function tagadelic_block_view($delta = '') {
     $tags = tagadelic_get_weighted_tags(array($delta), $levels, $block_tags);
     $tags = tagadelic_sort_tags($tags);
     $block['content'] = theme('tagadelic_weighted', array('terms' => $tags, 'voc' => $voc)); //return a chunk of 12 tags
-  }
-
-  if ($delta == 'example_simple_tagadelic') {
-    $block['subject'] = "Title of example simple tagadelic block";
-    $block['content'] = "words about the example simple tagadelic block";
   }
 
   return $block;

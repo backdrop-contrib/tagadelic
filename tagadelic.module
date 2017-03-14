@@ -458,24 +458,14 @@ function tagadelic_block_view($delta = '', $settings = array(), $contexts = arra
 /**
  * Implements hook_block_configure().
  */
-function tagadelic_block_configure($delta = '') {
-  $vocab = taxonomy_vocabulary_load($delta);
+function tagadelic_block_configure($delta = '', $settings = array()) {
   $form = array();
   $form['tags'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Tags to show'),
-    '#default_value' => config_get('tagadelic.settings', 'block_tags_' . $delta),
-    '#maxlength' => 3,
-    '#description' => t('The number of tags to show in this block.'),
+    '#type' => 'number',
+    '#title' => t('Number of tags to disply in this block.'),
+    '#default_value' => isset($settings['tags'])? $settings['tags'] : 12,
   );
   return $form;
-}
-
-/**
- * Implements hook_block_save().
- */
-function tagadelic_block_save($delta = '', $edit = array()) {
-  config_set('tagadelic.settings', 'block_tags_' . $delta, $edit['tags']);
 }
 
 /**

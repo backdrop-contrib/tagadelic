@@ -19,9 +19,6 @@ function tagadelic_update_1000() {
   $config->set('sort_order', update_variable_get('tagadelic_sort_order', 'title,asc'));
   $config->set('page_amount', update_variable_get('tagadelic_page_amount', 60));
   $config->set('levels', update_variable_get('tagadelic_levels', 6));
-
-  // @todo Write something dynamic for the variables with block IDs.
-
   $config->save();
 
   // Delete variables.

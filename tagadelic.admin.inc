@@ -10,27 +10,24 @@
 function tagadelic_settings() {
   $config = config('tagadelic.settings');
 
+  $form['tagadelic_page_amount'] = array(
+    '#type' => 'number',
+    '#title' => t('Number of tags to show on Tagadelic pages'),
+    '#default_value' => $config->get('page_amount'),
+    '#description' => t('The number of tags that will show up in a cloud. Number of tags tp show in each block must be configured in block settings.'),
+  );
+  $form['tagadelic_levels'] = array(
+    '#type' => 'number',
+    '#title' => t('Number of levels'),
+    '#default_value' => $config->get('levels'),
+    '#description' => t('The number of levels between the least popular tags and the most popular ones. Each levels will be shown as a different size.'),
+  );
   $options = array('weight,asc' => t('by weight, ascending'), 'weight,desc' => t('by weight, descending'), 'title,asc' => t('by title, ascending'), 'title,desc' => t('by title, descending'), 'random,none' => t('random'));
   $form['tagadelic_sort_order'] = array(
     '#type' => 'radios',
     '#title' => t('Tagadelic sort order'),
     '#options' => $options,
     '#default_value' => $config->get('sort_order'),
-    '#description' => t('Determines the sort order of the tags on the freetagging page.'),
-  );
-  $form['tagadelic_page_amount'] = array(
-    '#type' => 'textfield',
-    '#size' => 5,
-    '#title' => t('Amount of tags on the pages'),
-    '#default_value' => $config->get('page_amount'),
-    '#description' => t('The amount of tags that will show up in a cloud on the pages. Amount of tags in blocks must be configured in the block settings of the various cloud blocks.'),
-  );
-  $form['tagadelic_levels'] = array(
-    '#type' => 'textfield',
-    '#size' => 5,
-    '#title' => t('Number of levels'),
-    '#default_value' => $config->get('levels'),
-    '#description' => t('The number of levels between the least popular tags and the most popular ones. Different levels will be assigned a different class to be themed in tagadelic.css'),
   );
 
   // Add a submit button.

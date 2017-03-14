@@ -1,6 +1,6 @@
 name = Tagadelic
 description = Tagadelic makes weighted tag clouds from your taxonomy terms.
-package = "Taxonomy"
+package = Categorization
 type = module
 backdrop = 1.x
 dependencies[] = taxonomy

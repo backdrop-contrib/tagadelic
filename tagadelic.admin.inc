@@ -14,13 +14,13 @@ function tagadelic_settings() {
     '#type' => 'number',
     '#title' => t('Number of tags to show on Tagadelic pages'),
     '#default_value' => $config->get('page_amount'),
-    '#description' => t('The number of tags that will show up in a cloud. Number of tags tp show in each block must be configured in block settings.'),
+    '#description' => t('The number of tags that will show up in a cloud. Number of tags to show in each block must be configured in block settings.'),
   );
   $form['tagadelic_levels'] = array(
     '#type' => 'number',
     '#title' => t('Number of levels'),
     '#default_value' => $config->get('levels'),
-    '#description' => t('The number of levels between the least popular tags and the most popular ones. Each levels will be shown as a different size.'),
+    '#description' => t('The number of levels between the least popular tags and the most popular ones. Each level will be shown as a different size.'),
   );
   $options = array('weight,asc' => t('by weight, ascending'), 'weight,desc' => t('by weight, descending'), 'title,asc' => t('by title, ascending'), 'title,desc' => t('by title, descending'), 'random,none' => t('random'));
   $form['tagadelic_sort_order'] = array(

@@ -22,7 +22,6 @@ function tagadelic_menu() {
     'description' => 'Configure the tag clouds. Set the order, the number of tags, and the depth of the clouds.',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('tagadelic_settings'),
-    'access callback' => 'user_access',
     'access arguments' => array('administer taxonomy'),
     'file' => 'tagadelic.admin.inc',
   );
@@ -31,7 +30,6 @@ function tagadelic_menu() {
     'title' => 'Tags',
     'page callback' => 'tagadelic_page_chunk',
     'page arguments' => array(NULL),
-    'access callback' => 'user_access',
     'access arguments' => array('access content'),
     'type' => MENU_SUGGESTED_ITEM,
   );
@@ -39,7 +37,6 @@ function tagadelic_menu() {
     'title' => 'Tags',
     'page callback' => 'tagadelic_page_list',
     'page arguments' => array(2),
-    'access callback' => 'user_access',
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
   );
@@ -47,7 +44,6 @@ function tagadelic_menu() {
     'title' => 'Tags',
     'page callback' => 'tagadelic_page_chunk',
     'page arguments' => array(2),
-    'access callback' => 'user_access',
     'access arguments' => array('access content'),
     'type' => MENU_SUGGESTED_ITEM,
   );

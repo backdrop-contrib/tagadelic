@@ -24,7 +24,9 @@ function tagadelic_menu() {
     'page arguments' => array('tagadelic_settings'),
     'access callback' => 'user_access',
     'access arguments' => array('administer taxonomy'),
+    'file' => 'tagadelic.admin.inc',
   );
+
   $items['tagadelic'] = array(
     'title' => 'Tags',
     'page callback' => 'tagadelic_page_chunk',
@@ -50,45 +52,6 @@ function tagadelic_menu() {
     'type' => MENU_SUGGESTED_ITEM,
   );
   return $items;
-}
-
-/**
- * Menu callback. Admin setting page for tagadelic.
- */
-function tagadelic_settings() {
-  $config = config('tagadelic.settings');
-
-  $options = array('weight,asc' => t('by weight, ascending'), 'weight,desc' => t('by weight, descending'), 'title,asc' => t('by title, ascending'), 'title,desc' => t('by title, descending'), 'random,none' => t('random'));
-  $form['tagadelic_sort_order'] = array(
-    '#type' => 'radios',
-    '#title' => t('Tagadelic sort order'),
-    '#options' => $options,
-    '#default_value' => $config->get('sort_order'),
-    '#description' => t('Determines the sort order of the tags on the freetagging page.'),
-  );
-  $form['tagadelic_page_amount'] = array(
-    '#type' => 'textfield',
-    '#size' => 5,
-    '#title' => t('Amount of tags on the pages'),
-    '#default_value' => $config->get('page_amount'),
-    '#description' => t('The amount of tags that will show up in a cloud on the pages. Amount of tags in blocks must be configured in the block settings of the various cloud blocks.'),
-  );
-  $form['tagadelic_levels'] = array(
-    '#type' => 'textfield',
-    '#size' => 5,
-    '#title' => t('Number of levels'),
-    '#default_value' => $config->get('levels'),
-    '#description' => t('The number of levels between the least popular tags and the most popular ones. Different levels will be assigned a different class to be themed in tagadelic.css'),
-  );
-
-  // Add a submit button.
-  $form['actions']['#type'] = 'actions';
-  $form['actions']['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Save configuration'),
-  );
-
-  return $form;
 }
 
 /**
@@ -471,18 +434,6 @@ function tagadelic_theme() {
     'tagadelic_list_box' => array('arguments' => array('vocabulary' => NULL, 'tags' => NULL)),
     'tagadelic_weighted' => array('arguments' => array('terms' => array())),
   );
-}
-
-/**
- * Submit handler for module_settings_form().
- */
-function tagadelic_settings_submit($form, &$form_state) {
-  $config = config('tagadelic.settings');
-  $config->set('sort_order', $form_state['values']['tagadelic_sort_order']);
-  $config->set('page_amount', $form_state['values']['tagadelic_page_amount']);
-  $config->set('levels', $form_state['values']['tagadelic_levels']);
-  $config->save();
-  backdrop_set_message(t('The Tagadelic configuration options have been saved.'));
 }
 
 /**

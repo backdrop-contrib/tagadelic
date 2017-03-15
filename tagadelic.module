@@ -98,73 +98,83 @@ function tagadelic_settings() {
 
 /**
  * Menu wildcard loader.
+ *
+ * @param string $arg
+ *  Argument as passed in via the URL.
+ *
+ * @return array
+ *  All the fully loaded vocabularies indexed by machine name.
  */
-function tagadelic_vocs_load($vocs) {
-  if (is_numeric($vocs)) {
-    $vocs = array($vocs);
+function tagadelic_vocs_load($arg) {
+  $names = explode(',', $arg);
+  $vocabularies = array();
+  foreach ($names as $machine) {
+    $vocabularies[$machine] = taxonomy_vocabulary_load($machine);
   }
-  elseif (preg_match('/^([0-9]+,){1,5}[0-9]+$/', $vocs)) {
-    $vocs = explode(',', $vocs);
-  }
-  return $vocs;
+
+  return $vocabularies;
 }
 
 /**
  * Menu callback renders a tagadelic page.
+ *
+ * @param $vocabularies
+ *   Array of fully loaded vocabularies indexed by machine name.
+ *
+ * @return string
+ *   Rendered HTML output for weighted tag list.
  */
-function tagadelic_page_chunk($vocs_arg) {
-  // Turn the string from the URL into an array of vocabularies.
-  $vocs = explode(",", $vocs_arg);
-
-  if ($vocs == NULL) {
+function tagadelic_page_chunk($vocabularies = NULL) {
+  if ($vocabularies == NULL) {
+    // Load all vocabs if none are specified.
     foreach (taxonomy_get_vocabularies(NULL) as $vocabulary) {
-      $vocs[] = $vocabulary->machine_name;
+      $vocabularies[$vocabulary->machine_name] = $vocabulary->machine_name;
     }
   }
 
   $config = config('tagadelic.settings');
   $levels = $config->get('levels');
   $page_amount = $config->get('page_amount');
-  $tags = tagadelic_get_weighted_tags($vocs, $levels, $page_amount);
+  $tags = tagadelic_get_weighted_tags(array_keys($vocabularies), $levels, $page_amount);
   $tags = tagadelic_sort_tags($tags);
-  $output = theme('tagadelic_weighted', array('terms' => $tags, 'vocs' => $vocs));
+
+  $output = theme('tagadelic_weighted', array('terms' => $tags));
 
   if (!$output) {
     return backdrop_not_found();
   }
 
-  $output = "<div class=\"wrapper tagadelic\">$output</div>";
-
-  return $output;
+  return '<div class="wrapper tagadelic">' . $output . '</div>';
 }
 
 /**
  * Menu callback renders a tagadelic page with listed items: each vocabulary.
+ *
+ * @param $vocabularies
+ *   Array of fully loaded vocabularies indexed by machine name.
+ *
+ * @return string
+ *   Rendered HTML output for all weighted tag lists.
  */
-function tagadelic_page_list($vocs_arg) {
-  // Turn the string from the URL into an array of vocabularies.
-  $vocs = explode(",", $vocs_arg);
-
-  if ($vocs == NULL) {
+function tagadelic_page_list($vocabularies = NULL) {
+  if ($vocabularies == NULL) {
     return backdrop_not_found();
   }
 
   $output = '';
-  foreach ($vocs as $machine_name) {
-    $vocabulary = taxonomy_vocabulary_load($machine_name);
-
-    // Clean out vocabulary, so that we don't have to leave security to our
-    // theme layer.
+  foreach ($vocabularies as $machine_name => $vocabulary) {
+    // Sanitize.
     $vocabulary->description = filter_xss_admin($vocabulary->description);
     $vocabulary->name = filter_xss_admin($vocabulary->name);
 
     $config = config('tagadelic.settings');
     $levels = $config->get('levels');
     $page_amount = $config->get('page_amount');
+
     // The theme function is sometimes used for multiple vocabularies, so
     // expects an array of vocabulary names.
-    $vocs = array($vocabulary->machine_name);
-    $tags = tagadelic_get_weighted_tags($vocs, $levels, $page_amount);
+    $machine_names = array($vocabulary->machine_name);
+    $tags = tagadelic_get_weighted_tags($machine_names, $levels, $page_amount);
     $tags = tagadelic_sort_tags($tags);
 
     $output .= theme('tagadelic_list_box', array('vocabulary' => $vocabulary, 'tags' => $tags));
@@ -174,8 +184,7 @@ function tagadelic_page_list($vocs_arg) {
     return backdrop_not_found();
   }
 
-  $output = "<div class=\"wrapper tagadelic\">$output</div>";
-  return $output;
+  return '<div class="wrapper tagadelic">' . $output . '</div>';
 }
 
 /**
@@ -209,18 +218,19 @@ function tagadelic_node_get_terms($node) {
  * unordered at this stage, hence they need ordering either by calling our api
  * or by your own ordering data.
  *
- * @param $machine_names
- *   Vocabulary ids representing the vocabularies where you want the tags from.
+ * @param array $machine_names
+ *   Array of vocabulary machine names.
  * @param $steps
- *   The amount of tag-sizes you will be using. If you give "12" you still get
+ *   The number of tag-sizes you will be using. If you give "12" you still get
  *   six different "weights". Defaults to 6 and is optional.
  * @param $size
  *   The number of tags that will be returned.
+ *
  * @return
  *   An <em>unordered</em> array with tags-objects, containing the attribute
  *   $tag->weight.
  */
-function tagadelic_get_weighted_tags($machine_names, $steps = 6, $size = 60) {
+function tagadelic_get_weighted_tags($machine_names = array(), $steps = 6, $size = 60) {
   // Build the options so we can cache multiple versions.
   global $language;
   $options = implode('_', $machine_names) . '_' . $language->langcode . '_' . $steps . '_' . $size;
@@ -249,7 +259,6 @@ function tagadelic_get_weighted_tags($machine_names, $steps = 6, $size = 60) {
     }
 
     $tags = tagadelic_build_weighted_tags($tags, $steps);
-
     cache_set($cache_name, $tags, 'cache_page', CACHE_TEMPORARY);
   }
 
@@ -339,39 +348,34 @@ function _tagadelic_sort_by_weight($a, $b) {
 }
 
 /**
- * Theme function that renders the HTML for the tags.
+ * Theme function that renders the HTML for the tag cloud.
  *
- * @param array $vars
- *   An array, with the first vars element key 'terms' which should have an
- *   array for each term, and the second vars element key 'voc' which should be
- *   an array of vocabulary names.
+ * @param array $variables
+ *   An array containing the following keys:
+ *   - terms: Array of taxonomy term data, including:
+ *     - name: Sanitized term name.
+ *     - tid: term ID.
+ *     - weight: term weight.
+ *     - description: Sanitized term description.
  *
  * @return string
  *   The output.
  *
  * @ingroup themable
  */
-function theme_tagadelic_weighted(array $vars) {
-  $terms = $vars['terms'];
-  $vocs = $vars['vocs'];
+function theme_tagadelic_weighted($variables = array()) {
+  $terms = $variables['terms'];
   $output = '';
-
   foreach ($terms as $term) {
     $output .= l($term->name, 'taxonomy/term/' . $term->tid, array(
       'attributes' => array(
-        'class' => array("tagadelic", "level" . $term->weight),
+        'class' => array('tagadelic', 'level' . $term->weight),
         'rel' => 'tag',
         'title'  => $term->description,
         )
       )
     ) . " \n";
   }
-
-  // @todo Make more link work with page limits, and multiple vocabularies.
-  //if (count($terms) >= config_get('tagadelic.settings', 'block_tags_' . $vars['voc']->machine_name)) {
-    $more_link_url_arg = implode(",", $vocs);
-    $output .= theme('more_link', array('title' => t('more tags'), 'url' => "tagadelic/chunk/{$more_link_url_arg}"));
-  //}
 
   return $output;
 }
@@ -380,24 +384,24 @@ function theme_tagadelic_weighted(array $vars) {
  * Theme function that renders an entry in tagadelic/list/ views.
  *
  * @param $vocabulary
- *   A full vocabulary object.
+ *   A fully loaded taxonomy Vocabulary object, where name amd description have
+ *   been previously sanitized.
  * @param $tags
  *   An array with weighted tag objects.
+ *
  * @ingroup themable
  */
-function theme_tagadelic_list_box(array $vars) {
-  $vocabulary = $vars['vocabulary'];
-  $tags = $vars['tags'];
+function theme_tagadelic_list_box($variables = array()) {
+  $vocabulary = $variables['vocabulary'];
+  $tags = $variables['tags'];
 
-  // The theme function is sometimes used for multiple vocabularies, so
-  // expects an array of vocabulary names.
-  $vocs = array($vocabulary->machine_name);
-  $content = theme('tagadelic_weighted', array('terms' => $tags, 'vocs' => $vocs));
-  $output = '';
+  $content = theme('tagadelic_weighted', array('terms' => $tags));
+
+  $output = '<h2>' . $vocabulary->name . '</h2>';
   if ($vocabulary->description) {
-    $content = '<h2></h2><div>' . $vocabulary->description . '</div>' . $content;
+    $output .= '<div>' . $vocabulary->description . '</div>';
   }
-  $output .= '<h2>' . $vocabulary->name . '</h2><div>' . $content . '</div>';
+  $output .= '<div>' . $content . '</div>';
 
   return $output;
 }
@@ -408,12 +412,14 @@ function theme_tagadelic_list_box(array $vars) {
 function tagadelic_block_info() {
   $blocks = array();
 
-  foreach (taxonomy_get_vocabularies() as $voc) {
-    $blocks[$voc->machine_name] = array();
-    $custom_info = config_get('tagadelic.settings', 'block_title_' . $voc->machine_name);
-    $info = (!empty($custom_info) ? $custom_info : t('Tags in @voc', array('@voc' => $voc->name)));
-    $blocks[$voc->machine_name]['info'] = $info;
-    $blocks[$voc->machine_name]['cache'] = DRUPAL_CACHE_GLOBAL;
+  foreach (taxonomy_get_vocabularies() as $machine_name => $vocab) {
+    $custom_info = config_get('tagadelic.settings', 'block_title_' . $machine_name);
+    $info = (!empty($custom_info) ? $custom_info : t('Tags in @voc', array('@voc' => $vocab->name)));
+
+    $blocks[$machine_name] = array(
+      'info' => $info,
+      'cache' => BACKDROP_CACHE_GLOBAL,
+    );
   }
 
   return $blocks;
@@ -424,25 +430,26 @@ function tagadelic_block_info() {
  *
  * Assumes only one vocabulary per block.
  */
-function tagadelic_block_view($delta = '') {
+function tagadelic_block_view($delta = '', $settings = array(), $contexts = array()) {
   $block = array();
-  if ($voc = taxonomy_vocabulary_load($delta)) {
+  if ($vocab = taxonomy_vocabulary_load($delta)) {
     $config = config('tagadelic.settings');
 
     $custom_subject = $config->get('block_title_' . $delta);
-    $subject = (!empty($custom_subject) ? $custom_subject : t('Tags in @voc', array('@voc' => $voc->name)));
+    $subject = (!empty($custom_subject) ? $custom_subject : t('Tags in @voc', array('@voc' => $vocab->name)));
     $block['subject'] = $subject;
 
-    $custom_levels = $config->get('levels');
-    $levels = (!empty($custom_levels)) ? $custom_levels : 6;
-    $custom_block_tags = $config->get('block_tags_' . $delta);
-    $block_tags = (!empty($custom_block_tags) ? $custom_block_tags : 12);
-    $tags = tagadelic_get_weighted_tags(array($delta), $levels, $block_tags);
+    $levels = $config->get('levels');
+    $page_amount = $config->get('page_amount');
+
+    $tags = tagadelic_get_weighted_tags(array($delta), $levels, $settings['tags']);
     $tags = tagadelic_sort_tags($tags);
-    // The theme function is sometimes used for multiple vocabularies, so
-    // expects an array of vocabulary names.
-    $vocs = array($voc->machine_name);
-    $block['content'] = theme('tagadelic_weighted', array('terms' => $tags, 'vocs' => $vocs));
+
+    $block['content'] = theme('tagadelic_weighted', array('terms' => $tags));
+
+    if ($page_amount >= $settings['tags']) {
+      $block['content'] .= theme('more_link', array('title' => t('more tags'), 'url' => 'tagadelic/chunk/' . $vocab->machine_name));
+    }
   }
 
   return $block;
@@ -451,24 +458,14 @@ function tagadelic_block_view($delta = '') {
 /**
  * Implements hook_block_configure().
  */
-function tagadelic_block_configure($delta = '') {
-  $voc = taxonomy_vocabulary_load($delta);
+function tagadelic_block_configure($delta = '', $settings = array()) {
   $form = array();
   $form['tags'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Tags to show'),
-    '#default_value' => config_get('tagadelic.settings', 'block_tags_' . $delta),
-    '#maxlength' => 3,
-    '#description' => t('The number of tags to show in this block.'),
+    '#type' => 'number',
+    '#title' => t('Number of tags to disply in this block.'),
+    '#default_value' => isset($settings['tags'])? $settings['tags'] : 12,
   );
   return $form;
-}
-
-/**
- * Implements hook_block_save().
- */
-function tagadelic_block_save($delta = '', $edit = array()) {
-  config_set('tagadelic.settings', 'block_tags_' . $delta, $edit['tags']);
 }
 
 /**
@@ -477,7 +474,7 @@ function tagadelic_block_save($delta = '', $edit = array()) {
 function tagadelic_theme() {
   return array(
     'tagadelic_list_box' => array('arguments' => array('vocabulary' => NULL, 'tags' => NULL)),
-    'tagadelic_weighted' => array('arguments' => array('terms' => array(), 'vocs' => NULL)),
+    'tagadelic_weighted' => array('arguments' => array('terms' => array())),
   );
 }
 

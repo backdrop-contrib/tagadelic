@@ -12,7 +12,7 @@ Installation
 - Visit the configuration page under Administration > Configuration > Content
   authoring > Tag Cloud (admin/config/content/tagadelic_taxonomy) if changes
   are needed to the settings.
-  
+
 - Place a block to display the tag cloud, or urls like:
   - tagadelic
   - tagadelic/list
@@ -34,6 +34,7 @@ Current Maintainers
 -------------------
 
 - Cathy Theys (https://github.com/YesCT)
+- Jen Lampton (https://github.com/jenlampton)
 - Seeking additional maintainers
 
 Credits
